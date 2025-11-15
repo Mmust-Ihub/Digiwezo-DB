@@ -1,0 +1,50 @@
+name: "Setup Server"
+run-name: "Setup Server"
+on:
+  workflow_dispatch:
+    inputs:
+      setupServer:
+        description: "Do you want to setup the current server?"
+        type: boolean
+        default: false
+
+jobs:
+  setup:
+    name: "Setup Server"
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.setupServer == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.REMOTE_IP }} >> ~/.ssh/known_hosts
+
+      - name: Verify server connection
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_IP }} "echo 'Server connection successful'"
+
+      - name: Make the required dirs and upload the files.
+        run: |
+          ssh ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_IP }} << ENDSSH
+            mkdir -p ~/db
+          ENDSSH
+          rsync -avz ./* ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_IP }}:~/db
+
+
+      - name: Run server setup script
+        run: |
+          ssh ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_IP }} << ENDSSH
+            cd ~/db
+            sudo ./setup-server.sh "${{ secrets.REMOTE_USER }}"
+          ENDSSH
+
+      - name: Start a debug session
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
+        with:
+          detached: true

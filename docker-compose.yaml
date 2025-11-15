@@ -1,0 +1,94 @@
+
+x-mongo-config: &mongo_config
+  MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+  MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+
+services:
+# mongodb replicaset primary
+  mongod1:
+    container_name: mongod1
+    build: .
+    environment:
+      <<: *mongo_config
+    expose:
+      - 27017
+    volumes:
+      - mongod1:/data/db
+    depends_on:
+      - mongod2
+      - mongod3
+    restart: always
+    command: "mongod --bind_ip_all --replSet dbrs --keyFile /data/replica.key"
+    networks:
+      - digiwezo
+
+  # mongodb replicaset secondary
+  mongod2:
+    container_name: mongod2
+    build: .
+    expose:
+      - 27017
+    environment:
+      <<: *mongo_config
+    volumes:
+      - mongod2:/data/db
+    restart: always
+    command: "mongod --bind_ip_all --replSet dbrs --keyFile /data/replica.key"
+    networks:
+      - digiwezo
+
+  # mongodb replicaset arbiter
+  mongod3:
+    container_name: mongod3
+    build: .
+    expose:
+      - 27017
+    environment:
+      <<: *mongo_config
+    volumes:
+      - mongod3:/data/db
+    restart: always
+    command: "mongod --bind_ip_all --replSet dbrs --keyFile /data/replica.key"
+    networks:
+      - digiwezo
+
+  mongo-setup:
+    image: mongo:latest
+    container_name: mongo-setup
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    depends_on:
+      - mongod1
+      - mongod2
+      - mongod3
+    volumes:
+      - ./mongodb_rs_init.sh:/scripts/mongodb_rs_init.sh
+    restart: on-failure
+    entrypoint: ["/bin/bash", "/scripts/mongodb_rs_init.sh"]
+    networks:
+      - digiwezo
+
+  mongo-express:
+    container_name: mongo-express
+    image: mongo-express
+    restart: always
+    ports:
+      - ${MONGOEXP_PORT}:8081
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGOEXP_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGOEXP_PASSWORD}
+      ME_CONFIG_MONGODB_URL: ${ME_CONFIG_MONGODB_URL}
+    depends_on:
+      - "mongod1"
+    networks:
+      - digiwezo
+
+volumes:
+  mongod1:
+  mongod2:
+  mongod3:
+
+networks:
+  digiwezo:
+    external: true
