@@ -17,7 +17,6 @@ log "Starting the MongoDB cluster ..."
 docker compose up -d --build
 
 # Setup a cronjob to take backups
-CRONJOB="* * * * * $PROJECT_ROOT/run_backup.sh"
 (sudo crontab -l; echo "$CRONJOB >> $LOG_FILE 2>&1") | sudo crontab -
 sudo systemctl restart cron || { error "Error restarting cron service ..";}
 
