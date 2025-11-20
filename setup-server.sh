@@ -26,7 +26,7 @@ chown -R "$USERNAME":"$USERNAME" /home/"$USERNAME"/db
 
 echo "Installing Docker..."
 
-if ! command -v "aws" >/dev/null 2>&1; then
+if ! command -v "docker" >/dev/null 2>&1; then
 	# Remove any conflicting packages
 	for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do apt remove $pkg 2>/dev/null || true; done
 
